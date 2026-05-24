@@ -1,0 +1,79 @@
+import fitz  # PyMuPDF
+from docx import Document
+import re
+from typing import Dict, List
+
+# ---------- Text Extraction ----------
+def extract_text(filepath: str) -> str:
+    """Extracts text from PDF, DOCX, or TXT files."""
+    if filepath.endswith(".pdf"):
+        with fitz.open(filepath) as pdf:
+            return "\n".join(page.get_text() or '' for page in pdf)
+    elif filepath.endswith(".docx"):
+        doc = Document(filepath)
+        return "\n".join(para.text for para in doc.paragraphs)
+    elif filepath.endswith(".txt"):
+        with open(filepath, "r", encoding="utf-8") as file:
+            return file.read()
+    else:
+        raise ValueError("Unsupported file type.")
+
+# ---------- Contact Info Extraction ----------
+def extract_contact_details(text: str) -> Dict[str, str]:
+    """Extract email, phone number, name, and address from resume text."""
+    email = re.findall(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text)
+    phone = re.findall(r'(\+?\d[\d\s().-]{7,15}\d)', text)
+    
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    name = lines[0] if lines else "Not Found"
+    address = next((line for line in lines if "address" in line.lower()), "Not Found")
+
+    return {
+        "name": name,
+        "email": email[0] if email else "Not Found",
+        "phone": phone[0] if phone else "Not Found",
+        "address": address
+    }
+
+# ---------- Education Extraction ----------
+def extract_education(text: str) -> Dict[str, List[str]]:
+    """Extract education qualifications from resume text."""
+    education_keywords = ["b.tech", "bachelor", "m.tech", "master", "phd", "msc", "bsc", "mba", "diploma", "degree"]
+    education_found = [
+        line.strip() for line in text.lower().split('\n')
+        if any(keyword in line for keyword in education_keywords)
+    ]
+    return {
+        "total_qualifications": len(education_found),
+        "qualifications": education_found
+    }
+
+# ---------- Experience Extraction ----------
+def extract_experience(text: str) -> Dict[str, List[str]]:
+    """Extract work experience from resume text."""
+    experience_keywords = ["experience", "software", "developer", "engineer", "manager", "sales",
+                           "marketing", "data science", "machine learning", "finance", "analyst"]
+
+    experience_found = [
+        line.strip() for line in text.lower().split('\n')
+        if any(keyword in line for keyword in experience_keywords)
+    ]
+    return {
+        "total_experiences": len(experience_found),
+        "experiences": experience_found
+    }
+
+# ---------- Example Usage ----------
+if __name__ == "__main__":
+    file_path = "resumes/resume1.pdf"
+    #file_path = "resumes/resume3.txt"
+    resume_text = extract_text(file_path)
+
+    contact = extract_contact_details(resume_text)
+    education = extract_education(resume_text)
+    experience = extract_experience(resume_text)
+
+    print("Candidate Details:", contact)
+    print("Education:", education)
+    print("Experience:", experience)
+"""encoding="utf-8" is used so Python can safely read text files that may contain special characters, symbols, or non-English languages without errors."""
